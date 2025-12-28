@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
-use stm32f4xx_hal::{adc, dma, otg_fs, pac};
+use stm32f4xx_hal::{adc, dma, otg_fs, pac, timer};
 use usb_device::device;
 use usbd_audio::AudioClass;
 
@@ -15,7 +15,7 @@ impl<T> Global<T> {
 }
 
 pub struct Dma<'a> {
-    pub buffer: &'a mut [u16; consts::DMA_BUFFER_SIZE],
+    pub buffer: Option<&'a mut [u16; consts::DMA_BUFFER_SIZE]>,
     pub transfer: dma::Transfer<
         dma::StreamX<pac::DMA2, 0>,
         0,
@@ -33,6 +33,7 @@ pub struct Usb<'a> {
 pub struct Shared<'a> {
     pub dma: Dma<'a>,
     pub usb: Usb<'a>,
+    pub counter_hz: timer::counter::CounterHz<pac::TIM2>,
 }
 
 pub static G_SHARED: Global<Shared> = Global::init();

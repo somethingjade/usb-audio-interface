@@ -1,9 +1,9 @@
 use crate::{consts, global};
-use cortex_m::singleton;
+use cortex_m::{peripheral, singleton};
 use stm32f4xx_hal::{
     adc, dma,
     gpio::GpioExt,
-    otg_fs, pac,
+    interrupt, otg_fs, pac,
     prelude::{_fugit_RateExtU32, _stm32f4xx_hal_rcc_RccExt},
     rcc,
     timer::TimerExt,
@@ -11,7 +11,7 @@ use stm32f4xx_hal::{
 use usb_device::{bus, device};
 use usbd_audio::{AudioClassBuilder, Format, StreamConfig, TerminalType};
 
-pub fn init<'a>() -> global::Shared<'a> {
+pub fn init_shared<'a>() -> global::Shared<'a> {
     let dp = pac::Peripherals::take().unwrap();
     let mut rcc = dp.RCC.freeze(
         rcc::Config::hsi()
@@ -48,8 +48,7 @@ pub fn init<'a>() -> global::Shared<'a> {
         second_buffer,
         dma_config,
     );
-    let new_buffer =
-        singleton!(: [u16; consts::DMA_BUFFER_SIZE] = [0; consts::DMA_BUFFER_SIZE]).unwrap();
+    let new_buffer = singleton!(: [u16; consts::DMA_BUFFER_SIZE] = [0; consts::DMA_BUFFER_SIZE]);
     let ep_memory =
         singleton!(: [u32; consts::EP_MEMORY_SIZE] = [0; consts::EP_MEMORY_SIZE]).unwrap();
     let usb = otg_fs::USB::new(
@@ -86,5 +85,20 @@ pub fn init<'a>() -> global::Shared<'a> {
             usb_device,
             usb_audio,
         },
+        counter_hz: counter,
     };
+}
+
+pub fn start(shared: &mut global::Shared) {
+    shared.dma.transfer.start(|_| {});
+    shared
+        .counter_hz
+        .start(consts::USB_AUDIO_RATE.Hz())
+        .unwrap();
+}
+
+pub fn enable_interrupts() {
+    unsafe {
+        peripheral::NVIC::unmask(interrupt::DMA2_STREAM0);
+    }
 }
