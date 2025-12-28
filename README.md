@@ -1,1 +1,1 @@
-# stm32-usb-audio-interface
+# usb-audio-interface
